@@ -71,6 +71,10 @@ bootJar {
     enabled = true
 }
 
+bootBuildImage {
+    imageName = "jrmcdonald/techbyte-demo:${project.version}"
+}
+
 jar {
     enabled = false
 }
