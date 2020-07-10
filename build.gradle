@@ -1,0 +1,81 @@
+plugins {
+    id 'com.github.spotbugs' version "${spotbugsPluginVersion}"
+    id 'com.gtramontina.ghooks.gradle' version "${ghooksPluginVersion}"
+    id 'org.springframework.boot' version "${springBootPluginVersion}"
+    id 'java'
+    id 'java-library'
+}
+
+group = 'com.jrmcdonald'
+version = "${version}"
+sourceCompatibility = '11'
+targetCompatibility = '11'
+
+repositories {
+    mavenCentral()
+    maven {
+        url = 'https://maven.pkg.github.com/jrmcdonald/ms-common'
+        credentials {
+            username = "jrmcdonald"
+            password = project.findProperty('GITHUB_TOKEN') ?: System.getenv("GITHUB_TOKEN")
+        }
+    }
+}
+
+configurations {
+    commonBom
+    compileOnly.extendsFrom(commonBom)
+    annotationProcessor.extendsFrom(commonBom)
+    testCompileOnly.extendsFrom(commonBom)
+    testAnnotationProcessor.extendsFrom(commonBom)
+    implementation.extendsFrom(commonBom)
+    testImplementation.extendsFrom(commonBom)
+    testFixturesImplementation.extendsFrom(commonBom)
+
+    [apiElements, runtimeElements].each {
+        it.outgoing.artifacts.removeIf { it.buildDependencies.getDependencies(null).contains(jar) }
+        it.outgoing.artifact(bootJar)
+    }
+}
+
+dependencies {
+    commonBom platform("com.jrmcdonald:ms-common-bom:${commonVersion}")
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    implementation 'com.github.spotbugs:spotbugs-annotations'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.cloud:spring-cloud-starter-kubernetes-all'
+
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.force66:BeanTester'
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+    }
+}
+
+compileJava {
+    options.compilerArgs << "-Werror"
+    options.compilerArgs << "-Xlint:all"
+    options.compilerArgs << "-Xlint:-try"
+    options.compilerArgs << "-Xlint:-processing"
+}
+
+bootJar {
+    enabled = true
+}
+
+jar {
+    enabled = false
+}
+
+test {
+    useJUnitPlatform()
+}
+
+apply from: "${rootDir}/gradle/quality.gradle"

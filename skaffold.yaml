@@ -1,0 +1,26 @@
+apiVersion: skaffold/v2beta1
+kind: Config
+metadata:
+  name:
+build:
+  artifacts:
+    - image: jrmcdonald/techbyte-demo
+      custom:
+        buildCommand: ./scripts/docker-build.sh
+        dependencies:
+          paths:
+            - .
+deploy:
+  helm:
+    releases:
+      - name: techbyte-demo
+        namespace: dev
+        chartPath: ../helm-charts/charts/techbyte-demo
+        imageStrategy:
+          helm:
+            explicitRegistry: false
+        remote: true
+        values:
+          image: jrmcdonald/techbyte-demo
+        valuesFiles:
+          - charts/techbyte-demo/values.yaml
