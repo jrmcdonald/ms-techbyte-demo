@@ -1,0 +1,10 @@
+spotbugs {
+    toolVersion.set("${spotbugsToolVersion}")
+}
+
+spotbugsMain {
+    reports {
+        xml.enabled(false)
+        html.enabled(true)
+    }
+}

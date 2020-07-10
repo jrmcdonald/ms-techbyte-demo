@@ -1,0 +1,87 @@
+name: build
+
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+    branches:
+      - '*'
+      - '*/*'
+
+env:
+  slack-channel: 'status-ci-cd'
+
+jobs:
+  build:
+
+    if: contains(toJson(github.event.commits), '[skip ci]') == false
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          fetch-depth: 50
+      - run: |
+          git fetch --no-tags --prune --depth=1 origin main
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Set up JDK 1.11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.11
+
+      - name: Set up Node 12
+        uses: actions/setup-node@v1
+        with:
+          node-version: '12.x'
+
+      - name: Yarn Install
+        run: yarn install --frozen-lockfile
+
+      - name: Yarn Audit
+        uses: jrmcdonald/yarn-audit-action@main
+
+      - name: Validate Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v1
+
+      - name: Set up Gradle
+        run: chmod +x gradlew
+
+      - name: Build
+        run: ./gradlew build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v2
+        id: semantic
+        with:
+          extra_plugins: |
+            gradle-semantic-release-plugin
+            @semantic-release/exec
+            @semantic-release/git
+        env:
+          GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+
+      - name: Docker Release
+        if: steps.semantic.outputs.new_release_published == 'true'
+        run: |
+          ./gradlew bootBuildImage
+          docker login -u jrmcdonald -p ${{ secrets.DOCKER_IO_TOKEN }}
+          docker push docker.io/jrmcdonald/techbyte-demo:${{ steps.semantic.outputs.new_release_version }}
+
+      - uses: actions/upload-artifact@v1
+        if: always()
+        with:
+          name: reports
+          path: build/reports
