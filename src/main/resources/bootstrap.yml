@@ -1,6 +1,10 @@
 spring:
   application:
     name: techbyte-demo
+  cloud:
+    kubernetes:
+      reload:
+        enabled: true
 
 ---
 spring:
